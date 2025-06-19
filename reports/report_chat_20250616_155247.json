@@ -1,0 +1,17 @@
+{
+  "report_id": "report_chat_20250616_155247",
+  "start": "",
+  "end": "",
+  "prompt": "(New Message)",
+  "summary": "",
+  "messages": [
+    {
+      "role": "user",
+      "text": "안녕?"
+    },
+    {
+      "role": "assistant",
+      "text": "안녕하세요! 무엇을 도와드릴까요?"
+    }
+  ]
+}

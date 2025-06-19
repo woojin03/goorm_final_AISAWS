@@ -1,0 +1,112 @@
+/* 전체 레이아웃 */
+body {
+  margin: 0;
+  display: flex;
+  font-family: 'Segoe UI', sans-serif;
+  height: 100vh;
+  background-color: #f7f9fc; /* 💡 전체 배경 회색 */
+}
+
+/* 전체 layout 정렬 */
+.layout {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+/* 사이드바 */
+.sidebar {
+  width: 80px;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 20px;
+  height: 100vh;                /* 전체 화면 높이 확보 */
+  box-sizing: border-box;       /* padding 포함 계산 */
+}
+
+/* 메뉴 아이콘 영역 */
+.menu-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.sidebar-footer {
+  margin-top: auto;             /* 👈 이게 핵심: 최하단으로 밀어줌 */
+  padding-bottom: 20px;
+}
+
+.project-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #111827;
+}
+
+
+
+/* 로고 이미지 사이즈 제한 */
+.logo img {
+  width: 36px;    /* 또는 적절한 크기 */
+  height: auto;
+  margin-bottom: 40px;
+}
+
+
+/* 아이콘 공통 스타일 */
+.icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 12px;
+  transition: background-color 0.2s ease;
+}
+
+.icon:hover {
+  background-color: #e0e7ff;
+}
+
+.icon.active {
+  background-color: #6366f1;
+}
+
+.icon-svg {
+  width: 24px;
+  height: 24px;
+  stroke: #4b5563;
+}
+
+.icon.active .icon-svg {
+  stroke: white;
+}
+
+/* 오른쪽 전체 영역 */
+.main-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #f7f9fc; /* 💡 페이지 바디 회색 */
+}
+
+/* 헤더 */
+.top-header {
+  height: 60px;
+  background-color: white;
+  display: flex;
+  align-items: center;
+  padding-left: 20px;
+  font-weight: bold;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* 본문 */
+.page-body {
+  flex-grow: 1;
+  padding: 24px;
+}
+
+

@@ -1,0 +1,29 @@
+services:
+  aisaws-ollama:
+    image: ollama/ollama:latest
+    container_name: aisaws-ollama
+    volumes:
+      - aisaws-ollama-data:/root/.ollama
+    tty: true
+    restart: unless-stopped
+
+  aisaws-webui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aisaws-webui
+    volumes:
+      - ./static:/app/static
+    ports:
+      - "8080:8080"
+    environment:
+      - 'OLLAMA_BASE_URL=http://aisaws-ollama:11434'
+      - 'WEBUI_SECRET_KEY='
+    depends_on:
+      - aisaws-ollama
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    restart: unless-stopped
+
+volumes:
+  aisaws-ollama-data: {}
