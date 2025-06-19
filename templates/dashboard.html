@@ -1,0 +1,725 @@
+{% extends "base.html" %}
+{% block title %}대시보드{% endblock %}
+{% block header %}Dashboard{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<!-- 전체 스타일 및 레이아웃 정의 -->
+<style>
+/* 전체 레이아웃 설정 */
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background-color: #f7f9fc;
+  overflow-x: hidden;
+}
+
+/* 사이드바 고정 */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 80px;
+  height: 100vh;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 20px;
+  box-sizing: border-box;
+  z-index: 100;
+}
+
+/* 사이드바 아이콘 영역 */
+.menu-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-bottom: 20px;
+}
+
+.project-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #111827;
+}
+
+/* 아이콘 기본 스타일 */
+.icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 12px;
+  transition: background-color 0.2s ease;
+}
+
+.icon:hover {
+  background-color: #e0e7ff;
+}
+
+.icon.active {
+  background-color: #6366f1;
+}
+
+.icon-svg {
+  width: 24px;
+  height: 24px;
+  stroke: #4b5563;
+}
+
+.icon.active .icon-svg {
+  stroke: white;
+}
+
+/* 오른쪽 메인 콘텐츠 */
+.main-content {
+  margin-left: 80px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Top Header 확장 */
+.top-header {
+  height: 60px;
+  background-color: white;
+  display: flex;
+  align-items: center;
+  padding-left: 35px;
+  font-weight: bold;
+  border-bottom: 1px solid #e5e7eb;
+  box-sizing: border-box;
+  padding-bottom: 20px;
+  padding-top: 20px;
+}
+
+/* 페이지 바디 설정 */
+.page-body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  min-height: 100vh;
+  background-color: #f7f9fc;
+}
+
+/* 드롭다운 컨트롤 */
+.dashboard-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 차트 그리드 설정 */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+/* 각 차트 박스 */
+.grid-box {
+  background-color: white;
+  border: 0.5px solid #cbd5e1;
+  border-radius: 5px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+}
+
+/* 차트 컨테이너 및 크기 제한 */
+.chart-container {
+  height: auto;
+  max-height: 240px;
+  position: relative;
+}
+
+.chart-container canvas {
+  width: 100% !important;
+  height: auto !important;
+  max-height: 180px;
+}
+
+/* 툴팁 스타일 */
+.tooltip-container {
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 15px;
+  position: relative;
+  display: inline-block;
+  cursor: help;
+}
+
+/* 지도 넓이 박스 */
+.wide {
+  grid-column: span 3;
+  padding: 10px;
+}
+
+
+.tooltip-text {
+  visibility: hidden;
+  width: 240px;
+  background-color: #333;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 8px;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;  /* 충분히 높은 값으로 설정 */
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  font-size: 13px;
+  margin-top: 8px;
+  font-size: 10px;
+}
+
+/* 마우스를 올렸을 때 툴팁 보이기 */
+.tooltip-container:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+.button-group {
+  margin-left: auto;
+}
+
+</style>
+
+
+<!-- 📂 로그 선택 및 버튼 -->
+<!-- 로그 선택 + 버튼 -->
+<div class="dashboard-controls" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 16px 16px;">
+  <!-- 왼쪽: 라벨 + 셀렉트 -->
+  <div style="display: flex; align-items: center; gap: 8px;">
+    <label for="collection-select" style="font-size: 16px;"><strong>로그 날짜 선택 :</strong></label>
+    <select id="collection-select" style="padding: 6px 12px; border-radius: 6px; font-size: 10px;">
+      <option value="">-- 선택하세요 --</option>
+    </select>
+  </div>
+
+  <!-- 오른쪽: 버튼 그룹 -->
+  <div class="button-group" style="display: flex; gap: 12px;">
+    <button id="download-pdf" style="padding: 8px 16px; border-radius: 6px; background-color: #3b82f6; color: white; border: none; font-weight: bold; font-size: 12px;">
+      📄 PDF로 저장
+    </button>
+    <button id="send-discord" style="padding: 8px 16px; border-radius: 6px; background-color: #10b981; color: white; border: none; font-weight: bold; font-size: 12px;">
+      📤 Discord로 전송
+    </button>
+  </div>
+</div>
+
+
+
+<!-- 📊 차트 그리드 -->
+<div class="dashboard-grid">
+  <div class="grid-box">
+    <div class="tooltip-container">🕒 이벤트 추이
+      <span class="tooltip-text">시간 흐름에 따라 발생한 이벤트 개수를 시계열로 표시. <br>갑작스러운 급증 여부 식별.</span></div>
+    <div class="chart-container"><canvas id="chart1"></canvas></div>
+  </div>
+  <div class="grid-box">
+    <div class="tooltip-container">🚫 허용 vs 거부
+      <span class="tooltip-text">전체 트래픽 중 허용/차단 비율 시각화. <br>차단률이 높으면 이상 가능성 있음.</span></div>
+    <div class="chart-container"><canvas id="chart2"></canvas></div>
+  </div>
+  <div class="grid-box">
+    <div class="tooltip-container">🌐 상태 코드
+      <span class="tooltip-text">HTTP 상태 코드 비율 분석. 에러 코드 비중 증가 여부 감지.</span></div>
+    <div class="chart-container"><canvas id="chart3"></canvas></div>
+  </div>
+  <div class="grid-box">
+    <div class="tooltip-container">📍 IP별 접근
+      <span class="tooltip-text">접근량이 많은 IP 순서대로 나열. <br>특정 IP의 집중 접근 여부를 탐지.</span></div>
+    <div class="chart-container"><canvas id="chart4"></canvas></div>
+  </div>
+  <div class="grid-box">
+    <div class="tooltip-container">📦 다운로드 Top 5
+      <span class="tooltip-text">대용량 다운로드가 발생한 URI 또는 사용자/IP 순위를 시각화.</span></div>
+    <div class="chart-container"><canvas id="chart5"></canvas></div>
+  </div>
+  <div class="grid-box">
+    <div class="tooltip-container">🔍 포트 스캔 탐지
+      <span class="tooltip-text">포트 스캔 흔적을 나타냄. <br>X축: 포트, Y축: 횟수, 버블 크기: IP별 요청량 등.</span></div>
+    <div class="chart-container"><canvas id="chart6"></canvas></div>
+  </div>
+  <div class="grid-box wide">
+    <div class="tooltip-container" style="padding: 12px;">🌍 국가별 요청 지도
+      <span class="tooltip-text">GeoIP 국가 기반 호출 분포. <br>비정상 국가에서의 요청 탐지 가능.</span></div>
+    <div id="chart7-map" style="width: 100%; height: 400px; border-radius: 12px;"></div>
+  </div>
+</div>
+
+<!-- Chart.js 스크립트 로딩 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+
+
+<!-- 차트 스크립트 -->
+<script>
+Chart.defaults.font.size = 10;  // 모든 글씨 크기를 작게 설정
+document.addEventListener("DOMContentLoaded", function () {
+  // chart1: 시간대별 이벤트 발생 추이
+  fetch("/api/chart1")
+    .then(r => r.json())
+    .then(data => {
+      const dates = data.map(dt => new Date(dt));
+      const counts = {};
+      dates.forEach(date => {
+        const hourStr = date.getFullYear() + "-" +
+          String(date.getMonth()+1).padStart(2, "0") + "-" +
+          String(date.getDate()).padStart(2, "0") + " " +
+          String(date.getHours()).padStart(2, "0") + ":00";
+        counts[hourStr] = (counts[hourStr] || 0) + 1;
+      });
+      const labels = Object.keys(counts).map(str => new Date(str.replace(" ", "T") + ":00"));
+      const values = Object.values(counts);
+      const sorted = labels.map((dt, i) => ({dt, count: values[i]})).sort((a, b) => a.dt - b.dt);
+      new Chart(document.getElementById("chart1"), {
+        type: "line",
+        data: {
+          labels: sorted.map(d => d.dt),
+          datasets: [{
+            label: "이벤트 건수",
+            data: sorted.map(d => d.count),
+            fill: false, tension: 0.2, pointRadius: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              type: "time",
+              time: { unit: "hour" },
+              title: { display: true, text: "시간",font: { size: 9 } }
+            },
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: "이벤트 건수", font: { size: 9 } }
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => `건수: ${ctx.parsed.y}`
+              }
+            }
+          }
+        }
+      });
+    });
+
+  // chart2: 허용/거부 비율
+  fetch("/api/chart2")
+    .then(r => r.json())
+    .then(data => {
+      const labels = Object.keys(data).map(v => v === "ACCEPT" ? "허용" : "거부");
+      const values = Object.values(data);
+      new Chart(document.getElementById("chart2"), {
+        type: "doughnut",
+        data: {
+          labels: labels,
+          datasets: [{ data: values, borderWidth: 2 }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: "bottom" },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.label}: ${ctx.parsed}건`
+              }
+            }
+          }
+        }
+      });
+    });
+
+  // chart3: HTTP 상태 코드 비율
+  fetch("/api/chart3")
+    .then(r => r.json())
+    .then(data => {
+      const labels = Object.keys(data).map(code => `상태 ${code}`);
+      const values = Object.values(data);
+      new Chart(document.getElementById("chart3"), {
+        type: "pie",
+        data: {
+          labels: labels,
+          datasets: [{
+            data: values,
+            backgroundColor: ["#4ade80", "#facc15", "#f87171", "#a78bfa", "#60a5fa"]
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: "bottom" },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.label}: ${ctx.parsed}건`
+              }
+            }
+          }
+        }
+      });
+    });
+
+  // chart4: IP별 접근
+  fetch("/api/chart4")
+    .then(r => r.json())
+    .then(data => {
+      const labels = data.map(d => d.ip);
+      const values = data.map(d => d.count);
+      new Chart(document.getElementById("chart4"), {
+        type: "bar",
+        data: {
+          labels: labels,
+          datasets: [{
+            label: "접근 횟수",
+            data: values,
+            backgroundColor: "#60a5fa",
+            borderRadius: 6,
+            barThickness: 20
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          plugins: {
+            legend: { display: true, position: "top", align: "start" },
+            tooltip: {
+              callbacks: {
+                label: ctx => `접근 횟수: ${ctx.parsed.x}`
+              }
+            }
+          },
+          scales: {
+            x: { beginAtZero: true },
+            y: { title: { display: false } }
+          }
+        }
+      });
+    });
+// ✅ chart5: 다운로드 Top → 막대 차트로 출력 (5개 제한)
+fetch("/api/chart5")
+  .then(r => r.json())
+  .then(data => {
+    // 5개 초과일 경우 상위 5개만, 이하일 경우 전체 출력
+    const slicedData = data.length > 5 ? data.slice(0, 5) : data;
+
+    const decodedLabels = slicedData.map(item => item.decoded);
+    const values = slicedData.map(item => item.count);  // ✅ 수정: count 기준으로 값 추출
+
+    const ctx = document.getElementById("chart5").getContext("2d");
+
+    const maxVal = Math.max(...values);
+    const suggestedMax = maxVal > 1 ? Math.ceil(maxVal * 1.1) : 1;
+    const stepSize = suggestedMax > 5 ? Math.ceil(suggestedMax / 5) : 1;
+
+    new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: decodedLabels,
+        datasets: [{
+          label: "다운로드 횟수",
+          data: values,
+          backgroundColor: "#fb923c",
+          borderRadius: 4,
+          barThickness: 36
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: 20, bottom: 12, left: 12, right: 12 } },
+        plugins: {
+          legend: { display: true, position: "top" },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.parsed.y}회 다운로드`
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              maxRotation: 45,
+              minRotation: 45,
+              align: "end",
+              font: { size: 8 }
+            },
+            grid: { display: false }
+          },
+          y: {
+            beginAtZero: true,
+            suggestedMax: suggestedMax,
+            ticks: {
+              stepSize: stepSize,
+              font: { size: 12 }
+            },
+            grid: { color: "#e5e7eb" }
+          }
+        }
+      }
+    });
+  })
+  .catch(err => {
+    console.error("chart5 차트 렌더링 실패:", err);
+  });
+
+  // chart6: 포트 스캔 탐지 (세로 막대 + 간격 확보)
+fetch("/api/chart6")
+  .then(r => r.json())
+  .then(data => {
+    const labels = data.map(d => d.srcaddr);
+    const values = data.map(d => d.num_ports);
+
+    new Chart(document.getElementById("chart6"), {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "포트 수",
+          data: values,
+          backgroundColor: "#f87171",
+          borderRadius: 6,
+          barThickness: 18,        // 막대 두께 조절
+          categoryPercentage: 0.6, // 카테고리당 사용 비율 (여백 확보)
+          barPercentage: 0.8        // 실제 바 폭 비율
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: "top" },
+          tooltip: {
+            callbacks: {
+              label: ctx => `포트 수: ${ctx.parsed.y}`  // y축 값을 표시
+            }
+          }
+        },
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: "IP 주소",
+              font: { size: 9 }
+            },
+            ticks: {
+              font: { size: 8 },
+              color: "#374151"
+            },
+            grid: {
+              display: false
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: "포트 수",
+              font: { size: 9 }
+            },
+            beginAtZero: true,
+            ticks: {
+              font: { size: 10 },
+              color: "#374151",
+              stepSize: 1
+            },
+            grid: {
+              color: "#e5e7eb"
+            }
+          }
+        }
+      }
+    });
+  });
+
+
+
+// chart7: 국가별 요청 지도
+  const map = L.map('chart7-map').setView([20, 0], 2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  const countryCoords = {
+    "KR": [36.5, 127.5],
+    "US": [37.8, -96.9],
+    "JP": [36.2, 138.2],
+    "CN": [35.8, 104.1],
+    "RU": [61.5, 105.3],
+    "HK": [22.3193, 114.1694]
+  };
+
+  fetch("/api/chart7")
+    .then(res => res.json())
+    .then(data => {
+      Object.entries(data).forEach(([countryCode, count]) => {
+        const coords = countryCoords[countryCode];
+        if (!coords) return;
+        L.circleMarker(coords, {
+          radius: Math.min(30, 5 + Math.log(count)),
+          color: "#f87171",
+          fillColor: "#f87171",
+          fillOpacity: 0.6
+        }).addTo(map).bindPopup(`<b>${countryCode}</b>: ${count}건`);
+      });
+    });
+
+    const values = Object.values(data);
+
+    const ctx = document.getElementById("chart7-donut").getContext("2d");
+    new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          backgroundColor: [
+            "#60a5fa", "#fb923c", "#f87171", "#4ade80", "#a78bfa",
+            "#facc15", "#34d399", "#c084fc", "#f97316", "#818cf8"
+          ]
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: "bottom" },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.label}: ${ctx.parsed}건`
+            }
+          }
+        }
+      }
+    });
+  });
+
+  // ✅ 날짜 선택
+fetch("/api/collections/cloudtrail")
+  .then(r => r.json())
+  .then(data => {
+    const select = document.getElementById("collection-select");
+    data.collections.forEach(name => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      select.appendChild(opt);
+    });
+
+    // URL에 ?collection= 가 있으면 선택값 반영
+    const params = new URLSearchParams(window.location.search);
+    const selected = params.get("collection");
+    if (selected) {
+      select.value = selected;
+    }
+
+    // 선택 시 URL 변경
+    select.addEventListener("change", () => {
+      const value = select.value;
+      const newUrl = value ? `/dashboard?collection=${value}` : "/dashboard";
+      window.location.href = newUrl;
+    });
+  });
+
+
+  // ✅ PDF 저장 버튼 기능 추가
+  document.getElementById("download-pdf").addEventListener("click", async () => {
+  const element = document.querySelector(".dashboard-grid");
+  const mapDiv = document.getElementById("chart7-map");
+
+  const canvas = await html2canvas(mapDiv, { useCORS: true });
+  const mapImg = document.createElement("img");
+  mapImg.src = canvas.toDataURL("image/png");
+  mapImg.style.width = "100%";
+  mapImg.style.borderRadius = "12px";
+  mapImg.style.marginTop = "8px";
+
+  const parent = mapDiv.parentNode;
+  mapDiv.style.display = "none";
+  parent.appendChild(mapImg);
+
+  const opt = {
+    margin: 0.2,
+    filename: '보안_대시보드_리포트.pdf',
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+  };
+
+  await html2pdf().from(element).set(opt).save();
+  mapDiv.style.display = "block";
+  mapImg.remove();
+});
+
+document.getElementById("send-discord").addEventListener("click", async () => {
+  const btn = document.getElementById("send-discord");
+  btn.disabled = true;
+  btn.textContent = "📤 전송 중...";
+
+  const element = document.querySelector(".dashboard-grid");
+  const mapDiv = document.getElementById("chart7-map");
+
+  const canvas = await html2canvas(mapDiv, { useCORS: true });
+  const mapImg = document.createElement("img");
+  mapImg.src = canvas.toDataURL("image/png");
+  mapImg.style.width = "100%";
+  mapImg.style.borderRadius = "12px";
+  mapImg.style.marginTop = "8px";
+
+  const parent = mapDiv.parentNode;
+  mapDiv.style.display = "none";
+  parent.appendChild(mapImg);
+
+  const opt = {
+    margin: 0.2,
+    filename: 'report.pdf',
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+  };
+
+  const blob = await html2pdf().from(element).set(opt).outputPdf('blob');
+  const formData = new FormData();
+  formData.append("file", blob, "report.pdf");
+
+  const res = await fetch("/api/send-pdf-discord", {
+    method: "POST",
+    body: formData
+  });
+
+  if (res.ok) {
+    btn.textContent = "✅ 전송 완료!";
+  } else {
+    btn.textContent = "❌ 전송 실패";
+  }
+
+  mapDiv.style.display = "block";
+  mapImg.remove();
+  setTimeout(() => {
+    btn.disabled = false;
+    btn.textContent = "📤 Discord로 전송";
+  }, 3000);
+});
+
+
+</script>
+{% endblock %}

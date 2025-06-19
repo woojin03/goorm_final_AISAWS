@@ -1,0 +1,913 @@
+{% extends "base.html" %}
+{% block title %}LLM{% endblock %}
+{% block header %}<div class="top-header">LLM</div>{% endblock %}
+
+{% block content %}
+<style>
+  body, html {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #f9fafb;
+  }
+
+  .chat-layout {
+    display: flex;
+    height: calc(100vh - 15vh);
+    width: 100%;      /* 전체 너비 보장 */
+    min-width: 0; 
+    overflow: hidden;
+  }
+
+  .chat-sidebar {
+    width: 260px;
+    background-color: #ffffff;
+    border-right: 1px solid #e5e7eb;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0; /* ✅ 사이드바 너비 고정 */
+  }
+
+  .chat-sidebar h4 {
+    margin: 10px 0 12px;
+  }
+
+  .chat-sidebar input {
+    padding: 8px;
+    font-size: 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    margin-bottom: 16px;
+  }
+
+  .chat-sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .chat-sidebar ul li {
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    margin-bottom: 5px;
+  }
+
+  .chat-sidebar ul li a {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+
+  .chat-sidebar ul li:hover,
+  .chat-sidebar ul li.active {
+    background-color: #e0e7ff;
+    font-weight: 500;
+  }
+
+  .chat-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #ffffff;
+    padding: 16px;
+    overflow: hidden;
+    min-width: 0;     /* ✅ 핵심 추가 */
+  }
+
+  .chat-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 20px;
+    margin-bottom: 14px;
+  }
+
+  .chat-toolbar select,
+  .chat-toolbar button {
+    padding: 8px 14px;
+    font-size: 10px;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+    background-color: #f9fafb;
+    cursor: pointer;
+  }
+
+  .chat-toolbar button {
+    background-color: black;
+    font-size: 12px;
+    color: white;
+    border: none;
+  }
+
+  .chat-body {
+    flex: 1;
+    padding: 12px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-x: hidden;  /* 💡 수평 스크롤 방지 */
+  }
+
+  .message-bubble {
+  max-width: 700px;
+  width: fit-content;
+  padding: 10px 14px;
+  border-radius: 20px;
+  display: inline-block;
+  font-size: 12px;
+  word-break: break-word;       /* ✅ 단어 단위로 줄바꿈 */
+  white-space: pre-wrap;        /* ✅ 줄바꿈 유지 + 줄바꿈 가능 */
+  overflow-wrap: break-word;    /* ✅ 길이 초과 단어 잘라내기 */    /* ✅ 수평 스크롤 방지 */
+}
+
+.message-bubble pre,
+.message-bubble code {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+  .from-user {
+    align-self: flex-end;
+    background-color: #6366f1;
+    color: white;
+  }
+
+  .from-assistant {
+    align-self: flex-start;
+    background-color: #fef3c7;
+    color: #111827;
+  }
+
+  .chat-footer {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .chat-footer textarea {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    resize: none;
+    font-size: 12px;
+    line-height: 1.4;
+    min-height: 20px;
+    max-height: 140px;
+    overflow-y: auto;
+  }
+
+  .chat-footer button {
+    padding: 10px 20px;
+    background-color: #6366f1;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 11px;
+  }
+
+    .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+    padding: 80px 0;
+    text-align: center;
+    flex: 1;
+  }
+
+  .empty-state img {
+    width: 60px;
+    margin-bottom: 20px;
+    opacity: 0.3;
+  }
+
+  .empty-state h3 {
+    font-size: 18px;
+    margin-bottom: 6px;
+    color: #111827;
+  }
+
+  .empty-state p {
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+
+  .start-button {
+    background-color: black;
+    color: white;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    border: none;
+    cursor: pointer;
+  }
+
+
+ .report-item-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 10px;
+}
+
+.report-menu-container {
+  position: relative;
+}
+
+.report-menu-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.report-dropdown {
+  position: absolute;
+  top: 24px;
+  right: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  z-index: 100;
+  min-width: 100px;
+  display: none;
+}
+
+.report-dropdown button {
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 10px;
+  cursor: pointer;
+  color: #ef4444;
+}
+
+.report-dropdown button:hover {
+  background-color: #fef2f2;
+}
+
+.dropdown-container {
+  position: relative;
+}
+
+.plus-button {
+  min-width: 100%;
+  padding: 0 16px;
+  font-size: 18px;
+  background-color: #6366f1;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  align-self: stretch;
+  height: 100%;        /* ✅ 가장 강력한 stretch */
+  min-height: inherit; /* ✅ 부모의 늘어난 높이를 상속 */
+}
+
+.plus-button:hover {
+  background-color: #4f46e5;
+}
+
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  bottom: 48px;
+  left: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  min-width: 130px;
+}
+
+.dropdown-menu button {
+  width: 100%;
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 10px;
+  color: #111827;
+  cursor: pointer;
+}
+
+.dropdown-menu button:hover {
+  background-color: #f3f4f6;
+}
+
+.log-modal {
+  position: fixed;
+  z-index: 999;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.log-modal-content {
+  background-color: #fff;
+  padding: 24px;
+  border-radius: 8px;
+  width: 60%;
+  max-height: 70%;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+}
+
+.close-modal {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.log-modal-body {
+  background-color: #f9fafb;
+  padding: 16px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 13px;
+  margin-top: 12px;
+  max-height: 50vh;
+  overflow-y: auto;
+
+  white-space: pre-wrap;        /* ✅ 줄바꿈 유지 + wrap */
+  word-break: break-word;       /* ✅ 긴 문자열 줄바꿈 */
+  overflow-wrap: break-word;    /* ✅ 강제 줄바꿈 보완 */
+}
+
+
+</style>
+
+<div class="chat-layout">
+  <div class="chat-sidebar">
+    <h4>리포트 목록</h4>
+    <input type="text" placeholder="Search" />
+    <ul id="reportListContainer"></ul>
+  </div>
+
+  <div class="chat-main">
+    <div class="chat-toolbar">
+      <select id="llmSelect"></select>
+      <button id="newMessageBtn">New Message</button>
+    </div>
+
+    <div class="chat-body">
+  {% if selected_report %}
+    {% for chat in chat_history %}
+      <div class="message-bubble from-{{ chat.role }}">{{ chat.text }}</div>
+    {% endfor %}
+  {% else %}
+    <!-- 빈 상태 안내 화면 -->
+    <div class="empty-state">
+      <img src="/static/assets/chat.png" alt="empty" />
+      <h3>Messages</h3>
+      <p>Click on a report to view messages.</p>
+      <button class="start-button">New Message</button>
+    </div>
+  {% endif %}
+</div>
+
+
+    <div class="chat-footer">
+      <!-- + 버튼과 드롭다운 메뉴 -->
+      <div class="dropdown-container">
+      <button id="moreBtn" class="plus-button">+</button>
+      <div id="dropdownMenu" class="dropdown-menu">
+      <button id="viewLogBtn">원본 로그 보기</button>
+      <button id="downloadBtn">채팅 다운로드</button>
+      <button id="replaySummaryBtn">분석 다시보기</button>
+    </div>
+  </div>
+      <textarea id="chatInput" placeholder="Your message"></textarea>
+      <button id="sendBtn">Send</button>
+    </div>
+  </div>
+</div>
+
+<div id="logModal" class="log-modal" style="display: none;">
+  <div class="log-modal-content">
+    <span class="close-modal" id="closeLogModal">&times;</span>
+    <h3 id="logModalTitle">리포트 이름</h3>
+    <div class="log-modal-body" id="logModalBody">원본 로그 출력 영역</div>
+  </div>
+</div>
+
+<!-- ✅ 분석 다시 보기용 모달 -->
+<div id="summaryModal" class="log-modal" style="display: none;">
+  <div class="log-modal-content">
+    <span class="close-modal" id="closeSummaryModal">&times;</span>
+    <h3 id="summaryModalTitle">분석 다시 보기</h3>
+    <div class="log-modal-body" id="summaryModalBody">요약 내용이 여기에 표시됩니다.</div>
+  </div>
+</div>
+
+
+<script>
+const chatInput = document.getElementById('chatInput');
+const sendBtn = document.getElementById('sendBtn');
+const chatBody = document.querySelector('.chat-body');
+const modelSelect = document.getElementById('llmSelect');
+const chatFooter = document.querySelector('.chat-footer');
+const reportListContainer = document.getElementById('reportListContainer');
+const searchInput = document.querySelector('input[type="text"]');
+
+let isComposing = false;
+const urlParams = new URLSearchParams(window.location.search);
+let selectedReport = urlParams.get('selected_report');
+
+if (!selectedReport && chatFooter) chatFooter.style.display = 'none';
+
+window.addEventListener('DOMContentLoaded', async () => {
+  await loadModelList();
+
+  const promptRaw = urlParams.get('prompt');
+  const start = urlParams.get('start') || "";
+  const end = urlParams.get('end') || ""; 
+
+  if (!selectedReport && (start && end && promptRaw)) {
+    const startStr = start.replace(/-/g, '');
+    const endStr = end.replace(/-/g, '');
+    selectedReport = `report_${startStr}_${endStr}`;
+  }
+
+  if (start && end) {
+    localStorage.setItem(`range_${selectedReport}`, JSON.stringify({ start, end }));
+  }
+
+  // ✅ New Message 리포트 생성용: start/end/prompt 없이 진입한 경우 처리
+if ((!start || !end || !promptRaw) && selectedReport) {
+  try {
+    const res = await fetch("/create-report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        report_id: selectedReport,
+        start: start || "",
+        end: end || "",
+        text: promptRaw || "(New Message)",
+        role: "user"
+      })
+    });
+    const result = await res.json();
+    console.log("[리포트 생성]", result.status);
+  } catch (err) {
+    console.error("❌ 리포트 생성 실패:", err);
+  }
+}
+
+
+  // 🔧 진입 시 서버에 리포트 자동 생성 요청
+  if (start && end && promptRaw && selectedReport) {
+    try {
+      const res = await fetch("/create-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          report_id: selectedReport,
+          start,
+          end,
+          text: promptRaw,
+          role: "user"
+        })
+      });
+      const result = await res.json();
+      console.log("[리포트 생성]", result.status);
+    } catch (err) {
+      console.error("❌ 리포트 생성 실패:", err);
+    }
+  }
+
+  const key = `chat_${selectedReport}`;
+  const history = JSON.parse(localStorage.getItem(key) || '[]');
+  history.forEach(chat => {
+    const bubble = document.createElement('div');
+    bubble.className = `message-bubble from-${chat.role}`;
+    bubble.innerText = chat.text;
+    chatBody.appendChild(bubble);
+  });
+
+  if (chatInput) chatInput.focus();
+
+  // ✅ 최초 진입 시 자동 분석
+  if (promptRaw && promptRaw !== 'null' && chatInput && history.length === 0) {
+    await analyzeLogs(selectedReport, promptRaw, start, end);
+  }
+
+  if (chatInput) {
+    chatInput.addEventListener('input', () => {
+      chatInput.style.height = 'auto';
+      chatInput.style.height = chatInput.scrollHeight + 'px';
+    });
+    chatInput.addEventListener('compositionstart', () => isComposing = true);
+    chatInput.addEventListener('compositionend', () => isComposing = false);
+    chatInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey && !isComposing) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  }
+
+  if (sendBtn) {
+    sendBtn.addEventListener('click', () => sendMessage());
+  }
+
+  async function sendMessage() {
+    if (!chatInput || !selectedReport) return;
+    const message = chatInput.value.trim();
+    if (!message) return;
+
+    const userBubble = document.createElement('div');
+    userBubble.className = 'message-bubble from-user';
+    userBubble.innerText = message;
+    chatBody.appendChild(userBubble);
+
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+
+    const loadingBubble = document.createElement('div');
+    loadingBubble.className = 'message-bubble from-assistant';
+    loadingBubble.innerText = '...';
+    chatBody.appendChild(loadingBubble);
+    chatBody.scrollTop = chatBody.scrollHeight;
+
+    try {
+      const model = modelSelect.value;
+      const summary = localStorage.getItem(`summary_${selectedReport}`) || '';
+      const fullPrompt = `
+[요약 정보]
+${summary}
+
+[사용자 질문]
+${message}`.trim();
+
+      // 🔧 사용자 메시지 서버 저장
+      await fetch("/update-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          report_id: selectedReport,
+          start,
+          end,
+          text: message,
+          role: "user"
+        })
+      });
+
+      const response = await fetch("http://localhost:11434/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model, prompt: fullPrompt, stream: false })
+      });
+
+      const data = await response.json();
+      const reply = data.response;
+
+      loadingBubble.remove();
+      const botBubble = document.createElement('div');
+      botBubble.className = 'message-bubble from-assistant';
+      botBubble.innerText = reply;
+      chatBody.appendChild(botBubble);
+      chatBody.scrollTop = chatBody.scrollHeight;
+
+      const history = JSON.parse(localStorage.getItem(key) || '[]');
+      history.push({ role: 'user', text: message });
+      history.push({ role: 'assistant', text: reply });
+      localStorage.setItem(key, JSON.stringify(history));
+
+      // 🔧 모델 응답도 서버 저장
+      await fetch("/update-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          report_id: selectedReport,
+          start,
+          end,
+          text: reply,
+          role: "assistant"
+        })
+      });
+
+    } catch (err) {
+      loadingBubble.remove();
+      const errorBubble = document.createElement('div');
+      errorBubble.className = 'message-bubble from-assistant';
+      errorBubble.innerText = `❌ 응답 실패: ${err.message}`;
+      chatBody.appendChild(errorBubble);
+    }
+  }
+
+  async function analyzeLogs(reportId, prompt, start, end) {
+    const model = modelSelect.value;
+    const loadingBubble = document.createElement('div');
+    loadingBubble.className = 'message-bubble from-assistant';
+    loadingBubble.innerText = '🔍 보안 리포트 자동 분석 중...';
+    chatBody.appendChild(loadingBubble);
+    chatBody.scrollTop = chatBody.scrollHeight;
+
+    const displayPrompt = `자동 분석 요청: "${prompt}"`;
+
+    try {
+      const userBubble = document.createElement('div');
+      userBubble.className = 'message-bubble from-user';
+      userBubble.innerText = displayPrompt;
+      chatBody.appendChild(userBubble);
+
+      const history = JSON.parse(localStorage.getItem(`chat_${reportId}`) || '[]');
+      history.push({ role: 'user', text: displayPrompt });
+      localStorage.setItem(`chat_${reportId}`, JSON.stringify(history));
+
+      const response = await fetch("/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ start, end, prompt, model })
+      });
+
+      const data = await response.json();
+      const result = data?.analysis ?? "⚠️ 분석 결과가 없습니다.";
+
+      if (result && result !== "⚠️ 분석 결과가 없습니다.") {
+        localStorage.setItem(`summary_${reportId}`, result);
+      }
+
+      loadingBubble.remove();
+      const botBubble = document.createElement('div');
+      botBubble.className = 'message-bubble from-assistant';
+      botBubble.innerText = result;
+      chatBody.appendChild(botBubble);
+      chatBody.scrollTop = chatBody.scrollHeight;
+
+      history.push({ role: 'assistant', text: result });
+      localStorage.setItem(`chat_${reportId}`, JSON.stringify(history));
+    } catch (err) {
+      loadingBubble.remove();
+      const errorBubble = document.createElement('div');
+      errorBubble.className = 'message-bubble from-assistant';
+      errorBubble.innerText = `❌ 분석 실패: ${err.message}`;
+      chatBody.appendChild(errorBubble);
+
+    }
+  }
+});
+
+
+  // 🔘 New Message 버튼 동작
+document.querySelectorAll('.start-button, .chat-toolbar button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const now = new Date();
+
+    const datePart = now.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
+    const timePart = now.toTimeString().slice(0, 8).replace(/:/g, ''); // HHMMSS
+
+    const newReportId = `report_chat_${datePart}_${timePart}`;
+    const existing = JSON.parse(localStorage.getItem('reports') || '[]');
+
+    if (!existing.includes(newReportId)) {
+      existing.push(newReportId);
+      localStorage.setItem('reports', JSON.stringify(existing));
+    }
+
+    localStorage.setItem(`chat_${newReportId}`, JSON.stringify([]));
+    window.location.href = `/chat?selected_report=${newReportId}`;
+  });
+});
+
+
+  // 리포트 목록 렌더링
+function renderReportList() {
+  const reports = JSON.parse(localStorage.getItem('reports') || '[]');
+  const selectedReport = new URLSearchParams(window.location.search).get('selected_report');
+  const reportListContainer = document.getElementById('reportListContainer');
+
+  reportListContainer.innerHTML = '';
+
+  for (const report of reports) {
+    const li = document.createElement('li');
+    li.className = (report === selectedReport) ? 'active' : '';
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'report-item-wrapper';
+
+    const a = document.createElement('a');
+    a.href = `/chat?selected_report=${report}`;
+    a.textContent = report;
+
+    const menuContainer = document.createElement('div');
+    menuContainer.className = 'report-menu-container';
+
+    const menuBtn = document.createElement('button');
+    menuBtn.className = 'report-menu-btn';
+    menuBtn.textContent = '⋮';
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'report-dropdown';
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'delete-report-btn';
+    deleteBtn.textContent = '삭제하기';
+    deleteBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (confirm(`🗑️ 리포트 ${report} 삭제할까요?`)) {
+        const updated = reports.filter(r => r !== report);
+        localStorage.setItem('reports', JSON.stringify(updated));
+        localStorage.removeItem(`chat_${report}`);
+        renderReportList();
+        if (report === selectedReport) {
+          window.location.href = '/chat';
+        }
+      }
+    });
+
+    // 드롭다운 토글
+    menuBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+    });
+
+    dropdown.appendChild(deleteBtn);
+    menuContainer.appendChild(menuBtn);
+    menuContainer.appendChild(dropdown);
+    wrapper.appendChild(a);
+    wrapper.appendChild(menuContainer);
+    li.appendChild(wrapper);
+    reportListContainer.appendChild(li);
+  }
+}
+renderReportList();
+
+
+// ✅ "+" 버튼 기능: 로그 보기 & 리포트 저장
+document.getElementById('moreBtn')?.addEventListener('click', () => {
+  const menu = document.getElementById('dropdownMenu');
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+});
+
+// 원본 로그 보기
+document.getElementById('viewLogBtn')?.addEventListener('click', async () => {
+  const selectedReport = new URLSearchParams(window.location.search).get('selected_report');
+  try {
+    const res = await fetch(`/get-log?report_id=${selectedReport}`);
+    const data = await res.json();
+
+    if (!data.logs || data.logs.trim() === "") {
+      alert("📭 원본 로그를 찾을 수 없습니다.");
+      return;
+    }
+
+    document.getElementById('logModalTitle').innerText = selectedReport;
+    document.getElementById('logModalBody').innerText = data.logs;
+    document.getElementById('logModal').style.display = 'flex';
+  } catch (err) {
+    alert("❌ 로그 불러오기 실패: " + err.message);
+  }
+});
+
+
+// 모달 닫기
+document.getElementById('closeLogModal')?.addEventListener('click', () => {
+  document.getElementById('logModal').style.display = 'none';
+});
+
+// 리포트 저장 (타임라인/침해 관련 내용만 추출)
+document.getElementById('downloadBtn')?.addEventListener('click', () => {
+  const history = JSON.parse(localStorage.getItem(`chat_${selectedReport}`) || '[]');
+  if (history.length === 0) return alert('📭 저장할 내용이 없습니다.');
+
+  const filtered = history.filter(h =>
+    h.text.includes('타임라인') || h.text.includes('침해') || h.text.includes('[요약]'));
+
+  const content = filtered.map(h => `- [${h.role}] ${h.text}`).join('\n\n');
+  const blob = new Blob([content], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${selectedReport}_report.txt`;
+  a.click();
+});
+
+//드롭다운 외부 클릭시 자동 닫힘
+document.addEventListener('click', (e) => {
+  // 닫기: + 드롭다운 메뉴
+  const menu = document.getElementById('dropdownMenu');
+  const moreBtn = document.getElementById('moreBtn');
+  if (menu && !menu.contains(e.target) && e.target !== moreBtn) {
+    menu.style.display = 'none';
+  }
+
+  // 닫기: 모든 삭제 메뉴
+  document.querySelectorAll('.report-dropdown').forEach(dropdown => {
+    const parent = dropdown.parentElement.querySelector('.report-menu-btn');
+    if (dropdown.style.display === 'block' &&
+        !dropdown.contains(e.target) &&
+        e.target !== parent) {
+      dropdown.style.display = 'none';
+    }
+  });
+});
+
+
+  // 🔍 검색 필터
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      const items = reportListContainer.querySelectorAll('li');
+
+      items.forEach(item => {
+        const text = item.innerText.toLowerCase();
+        item.style.display = text.includes(query) ? '' : 'none';
+      });
+    });
+  }
+
+  async function loadModelList() {
+  try {
+    const res = await fetch("http://localhost:11434/api/tags");
+    const data = await res.json();
+
+    modelSelect.innerHTML = ''; // 기존 옵션 제거
+
+    data.models.forEach(model => {
+      const option = document.createElement('option');
+      option.value = model.name;
+      option.textContent = model.name;
+      modelSelect.appendChild(option);
+    });
+  } catch (err) {
+    console.error("❌ 모델 목록 불러오기 실패:", err);
+    modelSelect.innerHTML = `
+      <option value="gemma3:4b">gemma3:4b</option>
+      <option value="openchat">openchat</option>
+    `;
+  }
+}
+
+// 📄 분석 요약 보기 버튼 클릭 시 summary만 표시
+document.getElementById("replaySummaryBtn").addEventListener("click", async () => {
+  const reportId = new URLSearchParams(window.location.search).get('selected_report');
+
+  if (!reportId) {
+    alert("리포트를 먼저 선택하세요.");
+    return;
+  }
+
+  try {
+    // ✅ JSON 파일 요청
+    const res = await fetch(`/report/${reportId}`);
+    const data = await res.json();
+
+    // ✅ summary 필드만 사용
+    const summaryText = data.summary || "요약 정보가 없습니다.";
+
+    // ✅ 모달 제목과 내용 채우기
+    document.getElementById("summaryModalTitle").innerText = `📄 분석 요약 (${reportId})`;
+    document.getElementById("summaryModalBody").innerText = summaryText;
+
+    // ✅ 모달 열기
+    document.getElementById("summaryModal").style.display = "flex";
+  } catch (err) {
+    console.error("요약 불러오기 실패:", err);
+    alert("요약을 불러오는 중 문제가 발생했습니다.");
+  }
+});
+
+// ❌ 모달 닫기 버튼 클릭 시
+document.getElementById("closeSummaryModal").addEventListener("click", () => {
+  document.getElementById("summaryModal").style.display = "none";
+});
+
+
+
+</script>
+
+
+{% endblock %}

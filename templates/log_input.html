@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+{% block title %}로그 분석 요청{% endblock %}
+{% block header %}<div class="top-header">Log</div>{% endblock %}
+
+{% block content %}
+<style>
+  html, body {
+    height: 100%;
+  }
+
+  .page-body {
+    display: flex;
+    gap: 24px;
+    padding: 24px;
+    height: auto;
+    overflow: hidden;
+  }
+
+  .form-container {
+    flex: 1.5;
+    background: white;
+    border-radius: 2px;
+    padding: 10px 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    min-height: 680px; /* 👈 이 줄을 추가하면 아래로 여유 생김 */
+  }
+
+  .calendar-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0.5rem 0;
+  }
+
+  .calendar-nav button {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.7rem;
+    background-color: #e5e7eb;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  table.calendar {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 0.2rem;
+    font-size: 12px;
+  }
+
+  .calendar th, .calendar td {
+    padding: 8px;
+    border: 1px solid #ddd;
+    text-align: center;
+    cursor: pointer;
+  }
+
+  .calendar td.highlight {
+    background-color: #10b981;
+    color: white;
+    font-weight: bold;
+  }
+
+  .calendar td.disabled {
+    background-color: #f9fafb;
+    color: #cbd5e1;
+    pointer-events: none;
+  }
+
+  .date-range {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 1px 0 30px;
+  }
+
+  .date-range input {
+  background-color: #f9fafb;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 12px;
+  font-family: 'Segoe UI', sans-serif;
+  width: 130px;
+  pointer-events: none; /* 클릭 방지 */
+}
+
+
+  .output-container {
+    flex: 2.2;
+    background: #1e1e1e;
+    color: #c9d1d9;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    border-radius: 2px;
+    padding: 24px;
+    max-height: 100%;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    box-sizing: border-box;
+    min-height: 680px; /* 👈 이 줄을 추가하면 아래로 여유 생김 */
+  }
+
+  label {
+    font-weight: 600;
+    margin-top: 6px;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  input[type="date"],
+  textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: 2px;
+    border: 1px solid #d1d5db;
+    font-size: 12px;
+    font-family: 'Segoe UI', sans-serif;
+    margin-top: 6px;
+    box-sizing: border-box;
+  }
+
+  textarea {
+    height: 140px;
+    resize: vertical;
+    margin-bottom: 12px;
+  }
+
+  #sendBtn {
+    background-color: #10b981;
+    color: white;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    width: 100%;
+  }
+
+  #sendBtn:hover {
+    background-color: #059669;
+  }
+</style>
+
+<div class="page-body">
+  <!-- 왼쪽 입력 영역 -->
+  <div class="form-container">
+    <h4>기간 선택</h4>
+
+    <div class="calendar-nav">
+      <button onclick="prevMonth()">이전</button>
+      <strong id="monthYear"></strong>
+      <button onclick="nextMonth()">다음</button>
+    </div>
+    <table class="calendar" id="calendar"></table>
+
+    <div class="date-range">
+      <input type="date" id="start" name="start" readonly />
+      <span>~</span>
+      <input type="date" id="end" name="end" readonly />
+    </div>
+
+    <label for="prompt">프롬프트 입력</label>
+    <textarea id="prompt" name="prompt" placeholder="예: IP 권한 상승 경로에 대해서 자세히 분석해줘(영어/한국어)"></textarea>
+    <button id="sendBtn">보내기</button>
+  </div>
+
+  <!-- 오른쪽 로그 출력 -->
+  <div class="output-container">
+    <div id="logOutput">
+      로그 수집하는 과정을 여기에서 보여줍니다.
+    </div>
+  </div>
+</div>
+
+<script>
+  const sendBtn = document.getElementById('sendBtn');
+  const logOutput = document.getElementById('logOutput');
+  const startInput = document.getElementById("start");
+  const endInput = document.getElementById("end");
+  const calendar = document.getElementById("calendar");
+  const monthYear = document.getElementById("monthYear");
+  let viewDate = new Date();
+  let clickState = { clickCount: 0, firstDate: "" };
+
+
+sendBtn.addEventListener('click', async () => {
+  const start = startInput.value;
+  const end = endInput.value;
+  const rawPrompt = document.getElementById('prompt').value.trim();
+
+  if (!start || !end || !rawPrompt) {
+    alert("모든 필드를 입력해주세요.");
+    return;
+  }
+
+  const prompt = rawPrompt;  // chat.html에서 포맷 처리함
+  const reportId = `report_${start.replace(/-/g, '')}_${end.replace(/-/g, '')}`;
+
+  logOutput.innerText = `🟢 ${start} ~ ${end} 로그 수집 요청 중...\n📡 전송 중...\n`;
+  sendBtn.disabled = true;
+
+  try {
+    const response = await fetch("/collect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ start, end, prompt }),
+    });
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let resultText = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      logOutput.innerText += chunk;
+      resultText += chunk;
+      logOutput.scrollTop = logOutput.scrollHeight;
+    }
+
+    // ✅ 리포트 생성 및 저장
+    const reports = JSON.parse(localStorage.getItem('reports') || '[]');
+    if (!reports.includes(reportId)) {
+      reports.push(reportId);
+      localStorage.setItem('reports', JSON.stringify(reports));
+    }
+
+    // ✅ 로그, 날짜 저장 (chat은 비워두기)
+    localStorage.setItem(`chat_${reportId}`, JSON.stringify([]));
+    localStorage.setItem(`log_${reportId}`, resultText);
+    localStorage.setItem(`range_${reportId}`, JSON.stringify({ start, end }));
+
+    // ✅ chat.html로 이동 (자동 분석)
+    const query = new URLSearchParams({
+      selected_report: reportId,
+      prompt,
+      start,
+      end
+    }).toString();
+    window.location.href = `/chat?${query}`;
+
+  } catch (error) {
+    logOutput.innerText += `\n❌ 오류 발생: ${error.message}`;
+  } finally {
+    sendBtn.disabled = false;
+  }
+});
+
+
+
+  function renderCalendar(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const lastDate = new Date(year, month + 1, 0).getDate();
+
+    monthYear.textContent = `${year}년 ${month + 1}월`;
+    let html = `<tr><th>일</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th><th>토</th></tr><tr>`;
+
+    let day = 1;
+    for (let i = 0; i < 42; i++) {
+      if (i % 7 === 0 && i !== 0) html += "</tr><tr>";
+      if (i < firstDay || day > lastDate) {
+        html += "<td class='disabled'></td>";
+      } else {
+        const fullDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        html += `<td data-date="${fullDate}">${day}</td>`;
+        day++;
+      }
+    }
+    html += "</tr>";
+    calendar.innerHTML = html;
+
+    calendar.querySelectorAll("td[data-date]").forEach(td => {
+      td.addEventListener("click", () => handleDateClick(td.dataset.date));
+    });
+
+    highlightDateRange(startInput.value, endInput.value);
+  }
+
+  function handleDateClick(date) {
+    if (clickState.clickCount === 0) {
+      startInput.value = date;
+      endInput.value = "";
+      clickState.firstDate = date;
+      clickState.clickCount = 1;
+      highlightDateRange(date, date);
+    } else {
+      const [start, end] = [clickState.firstDate, date].sort();
+      startInput.value = start;
+      endInput.value = end;
+      clickState.clickCount = 0;
+      clickState.firstDate = "";
+      highlightDateRange(start, end);
+    }
+  }
+
+  function highlightDateRange(start, end) {
+    calendar.querySelectorAll("td[data-date]").forEach(td => {
+      const date = td.getAttribute("data-date");
+      if (start && end && date >= start && date <= end) {
+        td.classList.add("highlight");
+      } else {
+        td.classList.remove("highlight");
+      }
+    });
+  }
+
+  function prevMonth() {
+    viewDate.setMonth(viewDate.getMonth() - 1);
+    renderCalendar(viewDate);
+  }
+
+  function nextMonth() {
+    viewDate.setMonth(viewDate.getMonth() + 1);
+    renderCalendar(viewDate);
+  }
+
+  renderCalendar(viewDate);
+</script>
+{% endblock %}
