@@ -1,4 +1,4 @@
-# groom_final_AISAWS
+# goorm_final_AISAWS
 [구름 파이널 프로젝트] LLM 기반 AWS 로그 침해경로 자동 분석 시스템
 
 자세한 내용은 2팀 다이김조_(아티팩트수집기)AISAWS_발표자료.pdf 파일을 참고해주세요 
