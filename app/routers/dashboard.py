@@ -149,7 +149,7 @@ async def chart7():
     return JSONResponse(content=counter)
 
 
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1382606716755120172/mL1YfvyWD54kOjmtCEn4WxCL9yDu6NdAdXzhEpZw7lTP3QQB2rQ01lMEq2tRLWKJq4zC"  
+DISCORD_WEBHOOK = ""  
  # 실제 웹훅 주소로 변경
 
 @router.post("/api/send-pdf-discord")
